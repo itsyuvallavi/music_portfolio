@@ -5,7 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   // Updated with your actual repository name
-  base: '/music_portfolio/', 
+  base: './',  // Try relative base path
   build: {
     outDir: 'dist',
     sourcemap: true,
