@@ -1,3 +1,5 @@
+import homescreenImage from '../assets/images/homescreen.jpg'
+
 function Home() {
     return (
       <div className="min-h-screen h-[110vh] flex items-center justify-center relative overflow-hidden">
@@ -5,7 +7,7 @@ function Home() {
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat animate-slow-zoom"
           style={{
-            backgroundImage: "url('/src/assets/images/homescreen.jpg')",
+            backgroundImage: `url(${homescreenImage})`,
           }}
         ></div>
         

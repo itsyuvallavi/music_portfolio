@@ -1,3 +1,5 @@
+import portraitImage from '../assets/images/portrait.png'
+
 function About() {
     return (
       <section id="about" className="min-h-[100vh] flex items-center py-12 md:py-20 px-4 md:px-8 bg-bgGray">
@@ -7,18 +9,11 @@ function About() {
             <div className="flex-none flex justify-center w-full lg:w-auto">
               <div className="w-64 sm:w-80 md:w-96 lg:w-[32rem]">
                 <img
-                  src="/assets/images/portrait.png"
+                  src={portraitImage}
                   alt="Yuval Lavi"
                   className="w-full h-auto object-cover"
                   style={{
                     boxShadow: 'rgba(0, 0, 0, 0.25) 0px 14px 28px, rgba(0, 0, 0, 0.25) 0px 10px 10px'
-                  }}
-                  onError={(e) => {
-                    console.log('Image failed to load, trying fallback...')
-                    e.target.src = "/public/assets/images/portrait.png";
-                    e.target.onerror = () => {
-                      e.target.src = "/src/assets/images/portrait.png";
-                    };
                   }}
                 />
               </div>

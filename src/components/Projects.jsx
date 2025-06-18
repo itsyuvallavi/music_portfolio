@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import projectsData from '../data/projects.js'
 import { getAudioDuration } from '../utils/audioUtils.js'
+import treeImage from '../assets/images/tree.jpg'
 
 function Projects({ onTrackSelect }) {
   const [visibleProjects, setVisibleProjects] = useState(new Set())
@@ -100,7 +101,7 @@ function Projects({ onTrackSelect }) {
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
-          backgroundImage: "url('/src/assets/images/tree.jpg')",
+          backgroundImage: `url(${treeImage})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center'
         }}
