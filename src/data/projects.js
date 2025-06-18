@@ -1,20 +1,20 @@
-// Import images at the top
-import duelLogo from '../assets/images/albums/duel_logo.png';
-import enPaixLogo from '../assets/images/albums/en_paix_logo.png';
-import tfwLogo from '../assets/images/albums/tfw_logo.png';
+// Import optimized album cover images
+import duelLogo from '../assets/images/albums/duel_logo.jpg';
+import enPaixLogo from '../assets/images/albums/en_paix_logo.jpg';
+import tfwLogo from '../assets/images/albums/tfw_logo.jpg';
 import qcLogo from '../assets/images/albums/qc_logo.png';
 import ziLogo from '../assets/images/albums/zi_logo.png';
-import limboLogo from '../assets/images/albums/limbo_logo.png';
-import fdLogo from '../assets/images/albums/fd_logo.png';
+import limboLogo from '../assets/images/albums/limbo_logo.jpg';
+import fdLogo from '../assets/images/albums/fd_logo.jpg';
 import bsdLogo from '../assets/images/albums/bsd_logo.png';
 import lnLogo from '../assets/images/albums/ln_logo.png';
 import famdLogo from '../assets/images/albums/famd_logo.png';
 import wormLogo from '../assets/images/albums/worm_logo.png';
 import oblLogo from '../assets/images/albums/obl_logo.png';
-import LMLogo from '../assets/images/albums/lm_logo.jpg'
-import MattelLogo from '../assets/images/albums/mattel_logo.png'
-import SeaTexLogo from '../assets/images/albums/st_logo.png'
-import PolkadotLogo from '../assets/images/albums/polkadot_logo.png'
+import LMLogo from '../assets/images/albums/lm_logo.jpg';
+import MattelLogo from '../assets/images/albums/mattel_logo.png';
+import SeaTexLogo from '../assets/images/albums/st_logo.jpg';
+import PolkadotLogo from '../assets/images/albums/polkadot_logo.jpg';
 
 // Import all audio files
 import Duel from '../assets/music/Duel_Demo.mp3';
@@ -367,7 +367,7 @@ const projectsData = [
         title: "Polkadot",
         url: Polkadot,
         artist: "Yuval Lavi",
-        duration: "3:30" // Placeholder - will be auto-detected
+        duration: "3:30"
       }
     ]
   }

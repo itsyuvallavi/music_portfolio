@@ -7,16 +7,18 @@ function Projects({ onTrackSelect }) {
   const [visibleProjects, setVisibleProjects] = useState(new Set())
   const [displayedProjects, setDisplayedProjects] = useState(projectsData)
   const [durationsLoaded, setDurationsLoaded] = useState(false)
+  const [loadedAudio, setLoadedAudio] = useState(new Set())
   const projectRefs = useRef({})
 
-  // Load real audio durations on component mount
+  // Load durations progressively for better performance
   useEffect(() => {
     const loadRealDurations = async () => {
       console.log('🎵 Loading real audio durations...')
-      console.log('📊 Total projects found:', projectsData.length)
       const updatedProjects = []
       
-      for (const project of projectsData) {
+      // Load first 8 projects immediately (above the fold)
+      for (let i = 0; i < Math.min(8, projectsData.length); i++) {
+        const project = projectsData[i]
         try {
           if (project.audioFile) {
             const realDuration = await getAudioDuration(project.audioFile)
@@ -36,13 +38,42 @@ function Projects({ onTrackSelect }) {
           }
         } catch (error) {
           console.error(`❌ Failed to get duration for ${project.title}:`, error)
-          updatedProjects.push(project) // Keep original if failed
+          updatedProjects.push(project)
+        }
+      }
+      
+      // Update with first batch
+      setDisplayedProjects([...updatedProjects])
+      setDurationsLoaded(true)
+      
+      // Load remaining projects in background
+      for (let i = 8; i < projectsData.length; i++) {
+        const project = projectsData[i]
+        try {
+          if (project.audioFile) {
+            const realDuration = await getAudioDuration(project.audioFile)
+            
+            const updatedProject = {
+              ...project,
+              tracks: project.tracks.map(track => ({
+                ...track,
+                duration: realDuration
+              }))
+            }
+            
+            console.log(`✅ ${project.title}: ${realDuration}`)
+            updatedProjects.push(updatedProject)
+            setDisplayedProjects([...updatedProjects])
+          } else {
+            updatedProjects.push(project)
+          }
+        } catch (error) {
+          console.error(`❌ Failed to get duration for ${project.title}:`, error)
+          updatedProjects.push(project)
         }
       }
       
       console.log('📊 Final projects count:', updatedProjects.length)
-      setDisplayedProjects(updatedProjects)
-      setDurationsLoaded(true)
       console.log('🎵 All durations loaded!')
     }
 
@@ -52,75 +83,84 @@ function Projects({ onTrackSelect }) {
   const handlePlayClick = (project) => {
     console.log('🎵 Project play clicked for:', project.title)
     
-    // First, set the track in the player
+    // Preload audio on user intent
+    if (!loadedAudio.has(project.id) && project.audioFile) {
+      const audio = new Audio()
+      audio.preload = 'auto'
+      audio.src = project.audioFile
+      setLoadedAudio(prev => new Set([...prev, project.id]))
+    }
+    
     onTrackSelect(project.id)
     
-    // Then try to start playing using the global function
     setTimeout(() => {
       if (window.startMusicPlayer && project.audioFile) {
         window.startMusicPlayer()
       } else if (!project.audioFile) {
         console.log('⚠️ No audio file for:', project.title)
       }
-    }, 100) // Small delay to ensure player is set up
+    }, 100)
   }
 
-  // Scroll function to check if projects are in the middle of screen
+  // Optimized scroll detection with throttling
   useEffect(() => {
+    let ticking = false
+    
     const handleScroll = () => {
-      const screenMiddle = window.innerHeight / 2
-      const newVisibleProjects = new Set()
+      if (!ticking) {
+        requestAnimationFrame(() => {
+          const screenMiddle = window.innerHeight / 2
+          const newVisibleProjects = new Set()
 
-      Object.entries(projectRefs.current).forEach(([projectId, ref]) => {
-        if (ref) {
-          const rect = ref.getBoundingClientRect()
-          const projectMiddle = rect.top + rect.height / 2
-          
-          // Check if project center is near screen center (within 200px range)
-          if (Math.abs(projectMiddle - screenMiddle) < 200) {
-            newVisibleProjects.add(parseInt(projectId))
-          }
-        }
-      })
+          Object.entries(projectRefs.current).forEach(([projectId, ref]) => {
+            if (ref) {
+              const rect = ref.getBoundingClientRect()
+              const projectMiddle = rect.top + rect.height / 2
+              
+              if (Math.abs(projectMiddle - screenMiddle) < 200) {
+                newVisibleProjects.add(parseInt(projectId))
+              }
+            }
+          })
 
-      setVisibleProjects(newVisibleProjects)
+          setVisibleProjects(newVisibleProjects)
+          ticking = false
+        })
+        ticking = true
+      }
     }
 
-    // Add scroll listener
-    window.addEventListener('scroll', handleScroll)
-    // Check initial state
+    window.addEventListener('scroll', handleScroll, { passive: true })
     handleScroll()
 
-    // Cleanup
     return () => window.removeEventListener('scroll', handleScroll)
   }, [displayedProjects])
 
   return (
     <section id="projects" className="min-h-screen py-20 px-8 text-white relative overflow-hidden">
-      {/* Tree Background Image */}
+      {/* Optimized Tree Background Image (now 1.8MB vs larger before) */}
       <div 
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{
           backgroundImage: `url(${treeImage})`,
           backgroundSize: 'cover',
-          backgroundPosition: 'center'
+          backgroundPosition: 'center',
+          willChange: 'transform'
         }}
       />
 
       {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-bgGray bg-opacity-30"></div>
-        
-        {/* Gradient Overlay - fades to bgGray to match About section */}
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-            "linear-gradient(to top, transparent 0%, transparent 60%, rgba(26, 26, 26, 0.2) 70%, rgba(26, 26, 26, 0.5) 80%, rgba(26, 26, 26, 0.6) 85%, rgba(26, 26, 26, 0.8) 90%, rgba(26, 26, 26, 1) 100%), linear-gradient(to bottom, transparent 0%, transparent 80%, rgba(26, 26, 26, 0.7) 90%, rgba(26, 26, 26, 1) 100%)",
-        }}
-        ></div>
-
-
+      <div className="absolute inset-0 bg-bgGray bg-opacity-30" />
       
+      {/* Gradient Overlay */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+          "linear-gradient(to top, transparent 0%, transparent 60%, rgba(26, 26, 26, 0.2) 70%, rgba(26, 26, 26, 0.5) 80%, rgba(26, 26, 26, 0.6) 85%, rgba(26, 26, 26, 0.8) 90%, rgba(26, 26, 26, 1) 100%), linear-gradient(to bottom, transparent 0%, transparent 80%, rgba(26, 26, 26, 0.7) 90%, rgba(26, 26, 26, 1) 100%)",
+        }}
+      />
+
       {/* Content */}
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Section Header */}
@@ -128,10 +168,10 @@ function Projects({ onTrackSelect }) {
           <h2 className="text-sm tracking-[0.3em] uppercase opacity-70 mb-4">
             Selected Works
           </h2>
-          <div className="w-12 h-[1px] bg-white"></div>
+          <div className="w-12 h-[1px] bg-white" />
         </div>
 
-        {/* Projects Grid - No filter buttons anymore */}
+        {/* Projects Grid with optimized album covers */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {displayedProjects.map((project) => (
             <div 
@@ -143,6 +183,7 @@ function Projects({ onTrackSelect }) {
                 <img 
                   src={project.image} 
                   alt={project.title}
+                  loading="lazy"
                   className={`w-full h-full object-cover transition-all duration-700 grayscale ${
                     visibleProjects.has(project.id) 
                       ? 'grayscale-[0.5]' 
@@ -157,7 +198,7 @@ function Projects({ onTrackSelect }) {
                 >
                   <div className="text-center">
                     <div className="w-12 h-12 border border-white rounded-full flex items-center justify-center mx-auto mb-4 hover:bg-white hover:text-black transition-all duration-300">
-                      <i className="fas fa-play text-sm ml-1"></i>
+                      <i className="fas fa-play text-sm ml-1" />
                     </div>
                     <p className="text-sm tracking-wider">LISTEN</p>
                     <p className="text-xs opacity-75 mt-1">
