@@ -5,7 +5,7 @@ import { useState } from 'react'
 import Home from './components/Home'
 import About from './components/About'
 import Projects from './components/Projects'
-import Plugins from './components/Plugins'  // Add this import
+import Plugins from './components/Plugins'
 import Contact from './components/Contact'
 import BottomMusicPlayer from './components/BottomMusicPlayer'
 
@@ -26,7 +26,7 @@ function App() {
   }
 
   return (
-    <Router>
+    <Router basename="/music_portfolio">
       <div className="min-h-screen flex flex-col">
         <header className="fixed top-0 left-0 right-0 z-50 py-6 px-8">
           <nav className="max-w-7xl mx-auto flex justify-between items-center">
