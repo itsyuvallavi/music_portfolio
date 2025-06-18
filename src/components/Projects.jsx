@@ -7,18 +7,30 @@ function Projects({ onTrackSelect }) {
   const [visibleProjects, setVisibleProjects] = useState(new Set())
   const [displayedProjects, setDisplayedProjects] = useState(projectsData)
   const [durationsLoaded, setDurationsLoaded] = useState(false)
-  const [loadedAudio, setLoadedAudio] = useState(new Set())
+  const [backgroundLoaded, setBackgroundLoaded] = useState(false)
   const projectRefs = useRef({})
 
-  // Load durations progressively for better performance
+  // Preload tree background for instant, stable display
+  useEffect(() => {
+    const img = new Image()
+    img.onload = () => {
+      console.log('🌳 Tree background loaded!')
+      setBackgroundLoaded(true)
+    }
+    img.onerror = () => {
+      console.log('❌ Tree background failed to load')
+      setBackgroundLoaded(true) // Still show section with fallback
+    }
+    img.src = treeImage
+  }, [])
+
+  // Load durations progressively
   useEffect(() => {
     const loadRealDurations = async () => {
       console.log('🎵 Loading real audio durations...')
       const updatedProjects = []
       
-      // Load first 8 projects immediately (above the fold)
-      for (let i = 0; i < Math.min(8, projectsData.length); i++) {
-        const project = projectsData[i]
+      for (const project of projectsData) {
         try {
           if (project.audioFile) {
             const realDuration = await getAudioDuration(project.audioFile)
@@ -42,38 +54,8 @@ function Projects({ onTrackSelect }) {
         }
       }
       
-      // Update with first batch
-      setDisplayedProjects([...updatedProjects])
+      setDisplayedProjects(updatedProjects)
       setDurationsLoaded(true)
-      
-      // Load remaining projects in background
-      for (let i = 8; i < projectsData.length; i++) {
-        const project = projectsData[i]
-        try {
-          if (project.audioFile) {
-            const realDuration = await getAudioDuration(project.audioFile)
-            
-            const updatedProject = {
-              ...project,
-              tracks: project.tracks.map(track => ({
-                ...track,
-                duration: realDuration
-              }))
-            }
-            
-            console.log(`✅ ${project.title}: ${realDuration}`)
-            updatedProjects.push(updatedProject)
-            setDisplayedProjects([...updatedProjects])
-          } else {
-            updatedProjects.push(project)
-          }
-        } catch (error) {
-          console.error(`❌ Failed to get duration for ${project.title}:`, error)
-          updatedProjects.push(project)
-        }
-      }
-      
-      console.log('📊 Final projects count:', updatedProjects.length)
       console.log('🎵 All durations loaded!')
     }
 
@@ -82,14 +64,6 @@ function Projects({ onTrackSelect }) {
 
   const handlePlayClick = (project) => {
     console.log('🎵 Project play clicked for:', project.title)
-    
-    // Preload audio on user intent
-    if (!loadedAudio.has(project.id) && project.audioFile) {
-      const audio = new Audio()
-      audio.preload = 'auto'
-      audio.src = project.audioFile
-      setLoadedAudio(prev => new Set([...prev, project.id]))
-    }
     
     onTrackSelect(project.id)
     
@@ -102,7 +76,7 @@ function Projects({ onTrackSelect }) {
     }, 100)
   }
 
-  // Optimized scroll detection with throttling
+  // Optimized scroll detection
   useEffect(() => {
     let ticking = false
     
@@ -138,26 +112,54 @@ function Projects({ onTrackSelect }) {
 
   return (
     <section id="projects" className="min-h-screen py-20 px-8 text-white relative overflow-hidden">
-      {/* Optimized Tree Background Image (now 1.8MB vs larger before) */}
-      <div 
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `url(${treeImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          willChange: 'transform'
-        }}
-      />
+      {/* ROCK SOLID Tree Background - No Jumping or Crazy Behavior */}
+      <div className="absolute inset-0">
+        {/* Instant fallback that matches tree colors */}
+        <div className="absolute inset-0 bg-gradient-to-br from-green-900 via-gray-800 to-gray-900" />
+        
+        {/* Tree image - loads on top when ready, zero layout shift */}
+        <div 
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ${
+            backgroundLoaded ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            backgroundImage: `url(${treeImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center center',
+            backgroundRepeat: 'no-repeat',
+            // Prevent any scrolling/jumping behavior
+            backgroundAttachment: 'scroll',
+            transform: 'translateZ(0)', // Force GPU layer
+            willChange: 'opacity' // Optimize transitions
+          }}
+        />
+      </div>
 
-      {/* Dark overlay for better text readability */}
+      {/* Dark overlay for text readability */}
       <div className="absolute inset-0 bg-bgGray bg-opacity-30" />
       
-      {/* Gradient Overlay */}
+      {/* Gradient overlays for smooth section transitions */}
       <div
         className="absolute inset-0"
         style={{
-          background:
-          "linear-gradient(to top, transparent 0%, transparent 60%, rgba(26, 26, 26, 0.2) 70%, rgba(26, 26, 26, 0.5) 80%, rgba(26, 26, 26, 0.6) 85%, rgba(26, 26, 26, 0.8) 90%, rgba(26, 26, 26, 1) 100%), linear-gradient(to bottom, transparent 0%, transparent 80%, rgba(26, 26, 26, 0.7) 90%, rgba(26, 26, 26, 1) 100%)",
+          background: `
+            linear-gradient(
+              to top, 
+              transparent 0%, 
+              transparent 60%, 
+              rgba(26, 26, 26, 0.2) 70%, 
+              rgba(26, 26, 26, 0.5) 80%, 
+              rgba(26, 26, 26, 0.6) 85%, 
+              rgba(26, 26, 26, 0.8) 90%, 
+              rgba(26, 26, 26, 1) 100%
+            ), 
+            linear-gradient(
+              to bottom, 
+              transparent 0%, 
+              transparent 80%, 
+              rgba(26, 26, 26, 0.7) 90%, 
+              rgba(26, 26, 26, 1) 100%
+            )`
         }}
       />
 
@@ -171,7 +173,7 @@ function Projects({ onTrackSelect }) {
           <div className="w-12 h-[1px] bg-white" />
         </div>
 
-        {/* Projects Grid with optimized album covers */}
+        {/* Projects Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {displayedProjects.map((project) => (
             <div 
