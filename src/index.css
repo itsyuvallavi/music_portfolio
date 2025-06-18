@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply m-0 p-0 font-carme bg-dark text-white overflow-x-hidden;
+    line-height: 1.6;
+  }
+  
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  /* Waveform styles */
+  .waveform-container {
+    @apply w-full;
+  }
+  
+  .audio-button {
+    @apply p-3 w-5 cursor-pointer inline-block;
+  }
+  
+  .play-btn .fa-pause {
+    @apply hidden;
+  }
+  
+  .mute-btn .fa-volume-mute {
+    @apply hidden;
+  }
+  
+  /* Custom shape divider */
+  .custom-shape-divider {
+    @apply absolute bottom-0 left-0 w-full overflow-hidden leading-none;
+  }
+  
+  .custom-shape-divider svg {
+    @apply relative block;
+    width: calc(121% + 1.3px);
+    height: 105px;
+  }
+  
+  .shape-fill {
+    fill: #cccccc;
+  }
+}
+
+.custom-shape-divider-top-1722766256 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.custom-shape-divider-top-1722766256 svg {
+  position: relative;
+  display: block;
+  width: calc(121% + 1.3px);
+  height: 80px;
+}
+
+.shape-fill {
+  fill: #f3f4f6;
+}
