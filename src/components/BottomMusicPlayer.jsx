@@ -5,12 +5,12 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(0.6) // Set default volume to 60%
+  const [volume, setVolume] = useState(0.6)
   const [isMuted, setIsMuted] = useState(false)
-  const [previousVolume, setPreviousVolume] = useState(0.6) // Store previous volume for unmute
-  const [audioSrc, setAudioSrc] = useState(null)
-  const [hasTriedFallback, setHasTriedFallback] = useState(false)
+  const [previousVolume, setPreviousVolume] = useState(0.6)
   const [isVisible, setIsVisible] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
   const audioRef = useRef(null)
   
   const currentProject = projectsData.find(project => project.id === currentTrackId)
@@ -25,50 +25,23 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
-  // Set audio source when project changes
-  useEffect(() => {
-    if (currentProject?.audioFile) {
-      console.log('🔄 Project changed, setting new audio source:', currentProject.audioFile)
-      setAudioSrc(currentProject.audioFile)
-      setHasTriedFallback(false)
-    }
-  }, [currentProject])
-
-  // Show player when a track is selected
+  // Show/hide player when track changes
   useEffect(() => {
     setIsVisible(!!currentTrackId)
+    if (!currentTrackId) {
+      setError(null)
+    }
   }, [currentTrackId])
 
-  // Initialize audio element with proper volume
-  useEffect(() => {
-    const audio = audioRef.current
-    if (audio && audioSrc) {
-      // Set volume immediately when audio element is ready
-      audio.volume = isMuted ? 0 : volume
-      console.log(`🔊 Initial volume set to: ${Math.round(audio.volume * 100)}%`)
-    }
-  }, [audioSrc]) // Only depend on audioSrc change
-
-  // Handle volume changes separately
-  useEffect(() => {
-    const audio = audioRef.current
-    if (audio) {
-      // Only update volume, don't touch other audio properties
-      audio.volume = isMuted ? 0 : volume
-    }
-  }, [volume, isMuted])
-
-  // Expose play function to be called externally
+  // Expose play function for external calls
   useEffect(() => {
     window.startMusicPlayer = () => {
       const audio = audioRef.current
       if (audio && currentProject?.audioFile) {
-        console.log('🎵 Starting music from external call')
         audio.play().then(() => {
           setIsPlaying(true)
-          console.log('✅ Successfully started from external call')
         }).catch(error => {
-          console.log('❌ External play failed:', error.message)
+          setError('Unable to play audio')
         })
       }
     }
@@ -76,20 +49,14 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     return () => {
       delete window.startMusicPlayer
     }
-  }, [currentProject, audioSrc])
+  }, [currentProject])
 
   const togglePlay = () => {
     const audio = audioRef.current
-    console.log('🎵 Toggle play clicked')
-    
-    if (!audio) {
-      console.error('❌ Audio element not found')
-      return
-    }
+    if (!audio) return
 
     if (!currentProject?.audioFile) {
-      console.warn('⚠️ No audio file available')
-      alert('Audio preview not available for this track yet.')
+      setError('Audio preview not available for this track')
       return
     }
 
@@ -97,16 +64,18 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
       audio.pause()
       setIsPlaying(false)
     } else {
+      setIsLoading(true)
       const playPromise = audio.play()
       
       if (playPromise !== undefined) {
         playPromise.then(() => {
           setIsPlaying(true)
-          console.log('✅ Playing:', currentProject?.title)
+          setIsLoading(false)
+          setError(null)
         }).catch(error => {
-          console.error('❌ Play error:', error)
           setIsPlaying(false)
-          alert(`Unable to play: ${error.message}`)
+          setIsLoading(false)
+          setError(`Unable to play: ${error.message}`)
         })
       }
     }
@@ -120,6 +89,7 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     audio.currentTime = 0
     setIsPlaying(false)
     setCurrentTime(0)
+    setError(null)
   }
 
   const handleProgressClick = (e) => {
@@ -139,13 +109,13 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     if (!audio) return
 
     if (isMuted) {
-      // Unmute: restore previous volume
       setIsMuted(false)
       setVolume(previousVolume)
+      audio.volume = previousVolume
     } else {
-      // Mute: save current volume and set to 0
       setPreviousVolume(volume)
       setIsMuted(true)
+      audio.volume = 0
     }
   }
 
@@ -153,7 +123,12 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     const newVolume = parseFloat(e.target.value)
     setVolume(newVolume)
     
-    // If changing volume while muted, unmute
+    const audio = audioRef.current
+    if (audio) {
+      audio.volume = isMuted ? 0 : newVolume
+    }
+    
+    // Auto-unmute if volume is changed while muted
     if (isMuted && newVolume > 0) {
       setIsMuted(false)
     }
@@ -179,20 +154,20 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     onTrackChange(null)
   }
 
-  // Load and setup audio when track changes
+  // Handle audio loading and events
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !currentProject || !audioSrc) return
+    if (!audio || !currentProject?.audioFile) return
 
-    console.log('🔄 Setting up new track:', currentProject.title)
+    setIsLoading(true)
+    setError(null)
     
-    // Event handlers
     const handleLoadedMetadata = () => {
       const audioDuration = audio.duration
       if (isFinite(audioDuration) && !isNaN(audioDuration)) {
         setDuration(audioDuration)
-        console.log(`📊 Duration loaded: ${formatTime(audioDuration)}`)
       }
+      setIsLoading(false)
     }
 
     const handleTimeUpdate = () => {
@@ -207,7 +182,8 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     const handleEnded = () => {
       setIsPlaying(false)
       setCurrentTime(0)
-      console.log('🏁 Track ended')
+      // Auto-play next track
+      nextTrack()
     }
 
     const handlePlay = () => {
@@ -219,17 +195,22 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     }
 
     const handleCanPlay = () => {
-      console.log('✅ Audio can play')
       // Ensure volume is set when audio is ready
       audio.volume = isMuted ? 0 : volume
+      setIsLoading(false)
     }
 
     const handleError = (e) => {
-      console.error('❌ Audio error:', e)
       setIsPlaying(false)
+      setIsLoading(false)
+      setError('Failed to load audio file')
     }
 
-    // Add all event listeners
+    const handleLoadStart = () => {
+      setIsLoading(true)
+    }
+
+    // Add event listeners
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('ended', handleEnded)
@@ -237,13 +218,12 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
     audio.addEventListener('pause', handlePause)
     audio.addEventListener('canplay', handleCanPlay)
     audio.addEventListener('error', handleError)
+    audio.addEventListener('loadstart', handleLoadStart)
 
-    // Reset states
+    // Reset states and load new track
     setIsPlaying(false)
     setCurrentTime(0)
     setDuration(0)
-
-    // Load the new track
     audio.load()
 
     // Cleanup
@@ -255,8 +235,9 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
       audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('canplay', handleCanPlay)
       audio.removeEventListener('error', handleError)
+      audio.removeEventListener('loadstart', handleLoadStart)
     }
-  }, [currentTrackId, audioSrc]) // Remove volume from dependencies
+  }, [currentTrackId])
 
   if (!isVisible || !currentProject) return null
 
@@ -264,19 +245,49 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
   const displayVolume = isMuted ? 0 : volume
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 bg-black bg-opacity-95 backdrop-blur-md border-t border-white border-opacity-20 z-50">
+    <div 
+      className="fixed bottom-0 left-0 right-0 bg-black bg-opacity-95 backdrop-blur-md border-t border-white border-opacity-20 z-50"
+      role="region"
+      aria-label="Music player"
+    >
       {/* Hidden audio element */}
       <audio 
         ref={audioRef}
-        src={audioSrc}
+        src={currentProject?.audioFile}
         preload="metadata"
+        aria-hidden="true"
       />
 
       <div className="px-4 py-3">
+        {/* Error Display */}
+        {error && (
+          <div className="w-full bg-red-900 bg-opacity-50 text-red-200 text-xs px-3 py-1 mb-2 rounded">
+            {error}
+          </div>
+        )}
+
         {/* Progress Bar */}
         <div 
-          className="w-full h-1 bg-white bg-opacity-20 rounded-full cursor-pointer mb-3"
+          className="w-full h-1 bg-white bg-opacity-20 rounded-full cursor-pointer mb-3 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
           onClick={handleProgressClick}
+          role="slider"
+          aria-label="Audio progress"
+          aria-valuemin="0"
+          aria-valuemax={duration}
+          aria-valuenow={currentTime}
+          tabIndex="0"
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+              const audio = audioRef.current
+              if (audio && duration) {
+                const step = duration * 0.05 // 5% steps
+                const newTime = e.key === 'ArrowLeft' 
+                  ? Math.max(0, currentTime - step)
+                  : Math.min(duration, currentTime + step)
+                audio.currentTime = newTime
+              }
+            }
+          }}
         >
           <div 
             className="h-full bg-white rounded-full transition-all duration-100"
@@ -290,8 +301,10 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
           <div className="flex items-center gap-4 flex-1 min-w-0">
             <img 
               src={currentProject.image} 
-              alt={currentProject.title}
-              className={`w-12 h-12 object-contain rounded ${isPlaying ? '' : 'grayscale'}`}
+              alt={`${currentProject.title} album cover`}
+              className={`w-12 h-12 object-contain rounded transition-all duration-300 ${
+                isPlaying ? '' : 'grayscale'
+              } ${isLoading ? 'animate-pulse' : ''}`}
             />
             <div className="min-w-0 flex-1">
               <h3 className="text-sm font-medium truncate">{currentProject.title}</h3>
@@ -303,45 +316,63 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
           <div className="flex items-center gap-4">
             <button 
               onClick={prevTrack}
-              className="w-8 h-8 flex items-center justify-center hover:opacity-70 transition-opacity"
+              className="w-8 h-8 flex items-center justify-center hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 rounded"
+              aria-label="Previous track"
+              type="button"
             >
-              <i className="fas fa-step-backward text-sm"></i>
+              <i className="fas fa-step-backward text-sm" aria-hidden="true"></i>
             </button>
             
             <button 
               onClick={togglePlay}
-              className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all duration-300"
+              disabled={isLoading}
+              className="w-10 h-10 bg-white text-black rounded-full flex items-center justify-center hover:bg-opacity-90 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 disabled:opacity-50"
+              aria-label={isPlaying ? 'Pause' : 'Play'}
+              type="button"
             >
-              <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'} ${!isPlaying ? 'ml-0.5' : ''} text-sm`}></i>
+              {isLoading ? (
+                <div className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <i className={`fas ${isPlaying ? 'fa-pause' : 'fa-play'} ${!isPlaying ? 'ml-0.5' : ''} text-sm`} aria-hidden="true"></i>
+              )}
             </button>
 
             <button 
               onClick={stopAudio}
-              className="w-8 h-8 flex items-center justify-center hover:opacity-70 transition-opacity"
+              className="w-8 h-8 flex items-center justify-center hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 rounded"
+              aria-label="Stop"
+              type="button"
             >
-              <i className="fas fa-stop text-sm"></i>
+              <i className="fas fa-stop text-sm" aria-hidden="true"></i>
             </button>
             
             <button 
               onClick={nextTrack}
-              className="w-8 h-8 flex items-center justify-center hover:opacity-70 transition-opacity"
+              className="w-8 h-8 flex items-center justify-center hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 rounded"
+              aria-label="Next track"
+              type="button"
             >
-              <i className="fas fa-step-forward text-sm"></i>
+              <i className="fas fa-step-forward text-sm" aria-hidden="true"></i>
             </button>
           </div>
 
           {/* Time & Volume */}
           <div className="flex items-center gap-4 flex-1 justify-end">
-            <span className="text-xs opacity-60 min-w-max">
+            <span className="text-xs opacity-60 min-w-max" aria-live="polite">
               {formatTime(currentTime)} / {formatTime(duration)}
             </span>
             
             <div className="flex items-center gap-2">
               <button 
                 onClick={toggleMute}
-                className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity"
+                className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 rounded"
+                aria-label={isMuted ? 'Unmute' : 'Mute'}
+                type="button"
               >
-                <i className={`fas ${isMuted || volume === 0 ? 'fa-volume-mute' : volume < 0.5 ? 'fa-volume-down' : 'fa-volume-up'} text-xs`}></i>
+                <i className={`fas ${
+                  isMuted || volume === 0 ? 'fa-volume-mute' : 
+                  volume < 0.5 ? 'fa-volume-down' : 'fa-volume-up'
+                } text-xs`} aria-hidden="true"></i>
               </button>
               
               <input
@@ -351,18 +382,24 @@ function BottomMusicPlayer({ currentTrackId, onTrackChange }) {
                 step="0.01"
                 value={displayVolume}
                 onChange={handleVolumeChange}
-                className="w-20 h-1 bg-white bg-opacity-20 rounded-full appearance-none cursor-pointer"
+                className="w-20 h-1 bg-white bg-opacity-20 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50"
                 style={{
                   background: `linear-gradient(to right, white 0%, white ${displayVolume * 100}%, rgba(255,255,255,0.2) ${displayVolume * 100}%, rgba(255,255,255,0.2) 100%)`
                 }}
+                aria-label="Volume"
+                aria-valuemin="0"
+                aria-valuemax="1"
+                aria-valuenow={displayVolume}
               />
             </div>
 
             <button 
               onClick={closePlayer}
-              className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity ml-2"
+              className="w-6 h-6 flex items-center justify-center hover:opacity-70 transition-opacity ml-2 focus:outline-none focus:ring-2 focus:ring-white focus:ring-opacity-50 rounded"
+              aria-label="Close player"
+              type="button"
             >
-              <i className="fas fa-times text-xs"></i>
+              <i className="fas fa-times text-xs" aria-hidden="true"></i>
             </button>
           </div>
         </div>

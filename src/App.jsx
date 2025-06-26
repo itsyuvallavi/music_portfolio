@@ -5,7 +5,7 @@ import { useState } from 'react'
 import Home from './components/Home'
 import About from './components/About'
 import Projects from './components/Projects'
-import Plugins from './components/Plugins'
+import Plugins from './components/Plugins'  // Add this import
 import Contact from './components/Contact'
 import BottomMusicPlayer from './components/BottomMusicPlayer'
 
